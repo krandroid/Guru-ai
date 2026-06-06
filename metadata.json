@@ -1,0 +1,6 @@
+{
+  "name": "Koreksi Otomatis",
+  "description": "Sistem Koreksi Ujian Otomatis menggunakan AI Gemini untuk mengoreksi jawaban siswa terhadap kunci jawaban resmi secara objektif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
