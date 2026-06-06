@@ -379,8 +379,15 @@ fun KoreksiTabContent(
 ) {
     var expandedDropdown by remember { mutableStateOf(false) }
     var saveHistorySuccess by remember { mutableStateOf(false) }
+    var hasUploadedImage by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+
+    LaunchedEffect(gradingState) {
+        if (gradingState is GradingUiState.Error) {
+            Toast.makeText(context, "Proses Gagal: ${gradingState.message}", Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Launcher Galeri (Otomatis ambil PNG/JPG)
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -388,6 +395,7 @@ fun KoreksiTabContent(
     ) { uri ->
         if (uri != null) {
             viewModel.studentAnswerInput.value = "Memproses gambar dari galeri..."
+            hasUploadedImage = true
             com.example.core.OcrManager.scanText(context, uri) { hasilOCR ->
                 viewModel.studentAnswerInput.value = hasilOCR
             }
@@ -400,6 +408,7 @@ fun KoreksiTabContent(
     ) { bitmap ->
         if (bitmap != null) {
             viewModel.studentAnswerInput.value = "Memproses hasil jepretan kamera..."
+            hasUploadedImage = true
             com.example.core.OcrManager.scanText(bitmap) { hasilOCR ->
                 viewModel.studentAnswerInput.value = hasilOCR
             }
@@ -707,10 +716,95 @@ fun KoreksiTabContent(
                             shape = RoundedCornerShape(8.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
+                        // ===== MUAT CONTOH JAWABAN CEPAT =====
+                        Text(
+                            "Muat Contoh Jawaban Cepat",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    // Ensure sample key is present, select it, and fill sample answers
+                                    val sampleKey = answerKeys.find { it.subject == "IPA SD" || it.subject == "IPA Kelas 6" }
+                                    if (sampleKey != null) {
+                                        viewModel.selectedAnswerKey.value = sampleKey
+                                    } else {
+                                        viewModel.saveAnswerKey(
+                                            subject = "IPA SD",
+                                            title = "Sistem Tata Surya & Bumi",
+                                            content = "1. Planet terdekat dari Matahari adalah Merkurius.\n2. Satelit alami Bumi adalah Bulan.\n3. Planet terbesar di tata surya adalah Jupiter.\n4. Energi matahari dihasilkan melalui proses nuklir fusi."
+                                        )
+                                    }
+                                    viewModel.studentNameInput.value = "Andi Saputra"
+                                    viewModel.studentAnswerInput.value = "1. Planet paling dekat itu planet Merkurius.\n2. Bumi punya satu satelit namanya Bulan saja.\n3. Jupiter adalah planet paling raksasa.\n4. Panas matahari terjadi karena fusi atom hidrogen menjadi helium."
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Andi (Skor Tinggi)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val sampleKey = answerKeys.find { it.subject == "IPA SD" || it.subject == "IPA Kelas 6" }
+                                    if (sampleKey != null) {
+                                        viewModel.selectedAnswerKey.value = sampleKey
+                                    } else {
+                                        viewModel.saveAnswerKey(
+                                            subject = "IPA SD",
+                                            title = "Sistem Tata Surya & Bumi",
+                                            content = "1. Planet terdekat dari Matahari adalah Merkurius.\n2. Satelit alami Bumi adalah Bulan.\n3. Planet terbesar di tata surya adalah Jupiter.\n4. Energi matahari dihasilkan melalui proses fusi."
+                                        )
+                                    }
+                                    viewModel.studentNameInput.value = "Budi Gunawan"
+                                    viewModel.studentAnswerInput.value = "1. Planet paling dekat dengan matahari adalah Venus.\n2. Bulan adalah satelit bumi.\n3. Planet Jupiter sangat besar tapi yang terbesar bumi kata ibu guru.\n4. Matahari menyala karena terbakar."
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Budi (Skor Sedang)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+
+                        // Small non-blocking error display above primary button
+                        if (gradingState is GradingUiState.Error) {
+                            Text(
+                                text = "Proses Gagal: ${(gradingState as GradingUiState.Error).message}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+
+                        // SISAIN cuma 1 tombol: "Koreksi Sekarang (AI)" warna ungu #8B5CF6
                         Button(
-                            onClick = { viewModel.evaluateAnswer() },
+                            onClick = {
+                                if (studentName.trim().isEmpty()) {
+                                    Toast.makeText(context, "Masukkan nama siswa dulu bang", Toast.LENGTH_SHORT).show()
+                                } else if (!hasUploadedImage && studentAnswer.trim().isEmpty()) {
+                                    Toast.makeText(context, "Upload lembar jawaban dulu", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    viewModel.evaluateAnswer()
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = androidx.compose.ui.graphics.Color(0xFF8B5CF6),
                                 contentColor = androidx.compose.ui.graphics.Color.White
@@ -718,158 +812,26 @@ fun KoreksiTabContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .testTag("btnKoreksiAI"),
+                                .testTag("koreksi_button"),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(
-                                "KOREKSI AI",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Quick Samples prefill UI
-            item {
-                Column {
-                    Text(
-                        "Muat Contoh Jawaban Cepat",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = {
-                                // Ensure sample key is present, select it, and fill sample answers
-                                val sampleKey = answerKeys.find { it.subject == "IPA SD" }
-                                if (sampleKey != null) {
-                                    viewModel.selectedAnswerKey.value = sampleKey
-                                } else {
-                                    viewModel.saveAnswerKey(
-                                        subject = "IPA SD",
-                                        title = "Sistem Tata Surya & Bumi",
-                                        content = "1. Planet terdekat dari Matahari adalah Merkurius.\n2. Satelit alami Bumi adalah Bulan.\n3. Planet terbesar di tata surya adalah Jupiter.\n4. Energi matahari dihasilkan melalui proses nuklir fusi."
-                                    )
-                                }
-                                viewModel.studentNameInput.value = "Andi Saputra"
-                                viewModel.studentAnswerInput.value = "1. Planet paling dekat itu planet Merkurius.\n2. Bumi punya satu satelit namanya Bulan saja.\n3. Jupiter adalah planet paling raksasa.\n4. Panas matahari terjadi karena fusi atom hidrogen menjadi helium."
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Andi (Skor Tinggi)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-
-                        Button(
-                            onClick = {
-                                val sampleKey = answerKeys.find { it.subject == "IPA SD" }
-                                if (sampleKey != null) {
-                                    viewModel.selectedAnswerKey.value = sampleKey
-                                } else {
-                                    viewModel.saveAnswerKey(
-                                        subject = "IPA SD",
-                                        title = "Sistem Tata Surya & Bumi",
-                                        content = "1. Planet terdekat dari Matahari adalah Merkurius.\n2. Satelit alami Bumi adalah Bulan.\n3. Planet terbesar di tata surya adalah Jupiter.\n4. Energi matahari dihasilkan melalui proses fusi."
-                                    )
-                                }
-                                viewModel.studentNameInput.value = "Budi Gunawan"
-                                viewModel.studentAnswerInput.value = "1. Planet paling dekat dengan matahari adalah Venus.\n2. Bulan adalah satelit bumi.\n3. Planet Jupiter sangat besar tapi yang terbesar bumi kata ibu guru.\n4. Matahari menyala karena terbakar."
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Budi (Skor Sedang)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-            }
-
-            // Action Button
-            item {
-                Button(
-                    onClick = { viewModel.evaluateAnswer() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("koreksi_button"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Koreksi Sekarang (AI)",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Grading Icon",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Error message inside the Form view
-        if (gradingState is GradingUiState.Error) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Error",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Proses Gagal",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = gradingState.message,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(
-                            onClick = { viewModel.resetGradingState() },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Ulangi Langkah")
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Koreksi Sekarang (AI)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Grading Icon",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
