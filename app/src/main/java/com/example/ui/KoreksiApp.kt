@@ -3,6 +3,7 @@ package com.example.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.app.DownloadManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -399,6 +400,8 @@ fun KoreksiTabContent(
     ) { isGranted ->
         if (isGranted) {
             cameraLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Izin kamera diperlukan untuk scan!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1014,40 +1017,67 @@ fun KoreksiTabContent(
                         }
 
                         // Options
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            OutlinedButton(
-                                onClick = {
-                                    saveHistorySuccess = false
-                                    viewModel.resetGradingState()
-                                },
-                                modifier = Modifier.weight(1f)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text("Mulai Baru", fontWeight = FontWeight.Bold)
+                                OutlinedButton(
+                                    onClick = {
+                                        saveHistorySuccess = false
+                                        viewModel.resetGradingState()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Mulai Baru", fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        viewModel.saveToHistory(
+                                            GradingHistory(
+                                                studentName = studentName,
+                                                subject = currentKey?.subject ?: "-",
+                                                title = currentKey?.title ?: "-",
+                                                studentAnswer = studentAnswer,
+                                                score = gradingState.result.skor,
+                                                reason = gradingState.result.alasan
+                                            )
+                                        )
+                                        saveHistorySuccess = true
+                                    },
+                                    modifier = Modifier.weight(1.2f),
+                                    enabled = !saveHistorySuccess
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = "Simpan")
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Simpan Riwayat", fontWeight = FontWeight.Bold)
+                                }
                             }
 
+                            val context = LocalContext.current
                             Button(
                                 onClick = {
-                                    viewModel.saveToHistory(
-                                        GradingHistory(
-                                            studentName = studentName,
-                                            subject = currentKey?.subject ?: "-",
-                                            title = currentKey?.title ?: "-",
-                                            studentAnswer = studentAnswer,
-                                            score = gradingState.result.skor,
-                                            reason = gradingState.result.alasan
-                                        )
+                                    com.example.core.PdfHelper.cetakDanBagikanPdf(
+                                        context = context,
+                                        namaSiswa = studentName,
+                                        mapel = currentKey?.subject ?: "Mata Pelajaran",
+                                        skor = gradingState.result.skor.toString(),
+                                        alasan = gradingState.result.alasan
                                     )
-                                    saveHistorySuccess = true
                                 },
-                                modifier = Modifier.weight(1.2f),
-                                enabled = !saveHistorySuccess
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary
+                                ),
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = "Simpan")
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Simpan Riwayat", fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.Share, contentDescription = "Bagikan PDF")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Cetak & Bagikan PDF", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1066,6 +1096,37 @@ fun KunciJawabanTabContent(
     var subjectInput by remember { mutableStateOf("") }
     var titleInput by remember { mutableStateOf("") }
     var contentInput by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    // Launcher untuk Galeri
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            contentInput = "Mengekstrak teks kunci dari galeri...\n(Teks hasil OCR akan muncul di sini)"
+        }
+    }
+
+    // Launcher untuk Kamera
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            contentInput = "Mengekstrak teks kunci dari kamera...\n(Teks hasil OCR akan muncul di sini)"
+        }
+    }
+
+    // Launcher Izin Kamera
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            cameraLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Izin kamera diperlukan untuk scan!", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     if (showAddForm) {
         // Overlay/In-Card form to add target key
@@ -1119,11 +1180,63 @@ fun KunciJawabanTabContent(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    // ===== OCR KAMERA & GALERI UNTUK KUNCI JAWABAN =====
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Isi Kunci Jawaban Resmi",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        // Deretan Tombol Kamera & Galeri (Kecil agar rapi)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            IconButton(
+                                onClick = {
+                                    val hasCamPermission = ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.CAMERA
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    
+                                    if (hasCamPermission) {
+                                        cameraLauncher.launch(null)
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Ambil Foto Kunci",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            
+                            IconButton(
+                                onClick = { galleryLauncher.launch("image/*") },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "Pilih Kunci dari Galeri",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = contentInput,
                         onValueChange = { contentInput = it },
-                        label = { Text("Isi Kunci Jawaban Resmi") },
-                        placeholder = { Text("Tuliskan poin-poin jawaban yang benar dan wajib ada agar dinilai adil oleh AI Guru.") },
+                        placeholder = { Text("Tuliskan poin-poin acuan yang benar dan wajib ada agar dinilai adil oleh AI Guru... Atau gunakan ikon kamera/galeri di atas untuk scan otomatis.") },
                         minLines = 6,
                         maxLines = 15,
                         modifier = Modifier.fillMaxWidth()
@@ -1532,8 +1645,27 @@ fun RiwayatTabContent(
                                     text = history.reason,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                                    modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 12.dp)
                                 )
+
+                                val context = LocalContext.current
+                                OutlinedButton(
+                                    onClick = {
+                                        com.example.core.PdfHelper.cetakDanBagikanPdf(
+                                            context = context,
+                                            namaSiswa = history.studentName,
+                                            mapel = history.subject,
+                                            skor = history.score.toString(),
+                                            alasan = history.reason
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = "Bagikan PDF")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Cetak & Bagikan PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
                             }
                         }
                     }
