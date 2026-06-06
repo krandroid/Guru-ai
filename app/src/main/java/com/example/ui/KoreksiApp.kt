@@ -402,30 +402,6 @@ fun KoreksiTabContent(
         }
     }
 
-    // Launcher Kamera (Menjepret langsung)
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            viewModel.studentAnswerInput.value = "Memproses hasil jepretan kamera..."
-            hasUploadedImage = true
-            com.example.core.OcrManager.scanText(bitmap) { hasilOCR ->
-                viewModel.studentAnswerInput.value = hasilOCR
-            }
-        }
-    }
-
-    // Launcher Izin Kamera
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            cameraLauncher.launch(null)
-        } else {
-            Toast.makeText(context, "Izin kamera diperlukan untuk scan!", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -644,63 +620,29 @@ fun KoreksiTabContent(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        Row(
+                        Button(
+                            onClick = {
+                                galleryLauncher.launch("image/*")
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                .padding(bottom = 12.dp)
+                                .testTag("btn_select_gallery"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
-                            Button(
-                                onClick = {
-                                    val hasCamPermission = ContextCompat.checkSelfPermission(
-                                        context, Manifest.permission.CAMERA
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                    
-                                    if (hasCamPermission) {
-                                        cameraLauncher.launch(null)
-                                    } else {
-                                        permissionLauncher.launch(Manifest.permission.CAMERA)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Ambil Foto Lembar Jawaban",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Akses Kamera", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Button(
-                                onClick = {
-                                    galleryLauncher.launch("image/*")
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = "Pilih dari Galeri",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Dari Galeri", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = "Pilih dari Galeri",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("📁 Pilih File Jawaban PNG/JPG", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedTextField(
@@ -1107,28 +1049,7 @@ fun KunciJawabanTabContent(
         }
     }
 
-    // Launcher untuk Kamera
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            contentInput = "Mengekstrak teks kunci dari kamera..."
-            com.example.core.OcrManager.scanText(bitmap) { hasilOCR ->
-                contentInput = hasilOCR
-            }
-        }
-    }
 
-    // Launcher Izin Kamera
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            cameraLauncher.launch(null)
-        } else {
-            Toast.makeText(context, "Izin kamera diperlukan untuk scan!", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     if (showAddForm) {
         // Overlay/In-Card form to add target key
@@ -1200,28 +1121,6 @@ fun KunciJawabanTabContent(
                         // Deretan Tombol Kamera & Galeri (Kecil agar rapi)
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(
-                                onClick = {
-                                    val hasCamPermission = ContextCompat.checkSelfPermission(
-                                        context, Manifest.permission.CAMERA
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                    
-                                    if (hasCamPermission) {
-                                        cameraLauncher.launch(null)
-                                    } else {
-                                        permissionLauncher.launch(Manifest.permission.CAMERA)
-                                    }
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Ambil Foto Kunci",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            
-                            IconButton(
                                 onClick = { galleryLauncher.launch("image/*") },
                                 modifier = Modifier.size(36.dp)
                             ) {
@@ -1238,7 +1137,7 @@ fun KunciJawabanTabContent(
                     OutlinedTextField(
                         value = contentInput,
                         onValueChange = { contentInput = it },
-                        placeholder = { Text("Tuliskan poin-poin acuan yang benar dan wajib ada agar dinilai adil oleh AI Guru... Atau gunakan ikon kamera/galeri di atas untuk scan otomatis.") },
+                        placeholder = { Text("Tuliskan poin-poin acuan yang benar dan wajib ada agar dinilai adil oleh AI Guru... Atau gunakan ikon galeri di atas untuk scan otomatis.") },
                         minLines = 6,
                         maxLines = 15,
                         modifier = Modifier.fillMaxWidth()
