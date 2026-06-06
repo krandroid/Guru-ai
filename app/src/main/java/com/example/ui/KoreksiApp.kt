@@ -52,6 +52,12 @@ fun KoreksiApp(viewModel: KoreksiViewModel) {
     val studentAnswer by viewModel.studentAnswerInput.collectAsStateWithLifecycle()
     val gradingState by viewModel.gradingUiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(answerKeys) {
+        if (viewModel.selectedAnswerKey.value == null && answerKeys.isNotEmpty()) {
+            viewModel.selectedAnswerKey.value = answerKeys.firstOrNull()
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     
@@ -381,7 +387,10 @@ fun KoreksiTabContent(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            viewModel.studentAnswerInput.value = "Memproses gambar dari galeri...\n(Teks hasil OCR akan muncul di sini)"
+            viewModel.studentAnswerInput.value = "Memproses gambar dari galeri..."
+            com.example.core.OcrManager.scanText(context, uri) { hasilOCR ->
+                viewModel.studentAnswerInput.value = hasilOCR
+            }
         }
     }
 
@@ -390,7 +399,10 @@ fun KoreksiTabContent(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            viewModel.studentAnswerInput.value = "Memproses hasil jepretan kamera...\n(Teks hasil OCR akan muncul di sini)"
+            viewModel.studentAnswerInput.value = "Memproses hasil jepretan kamera..."
+            com.example.core.OcrManager.scanText(bitmap) { hasilOCR ->
+                viewModel.studentAnswerInput.value = hasilOCR
+            }
         }
     }
 
@@ -694,6 +706,28 @@ fun KoreksiTabContent(
                                 .testTag("student_answer_field"),
                             shape = RoundedCornerShape(8.dp)
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { viewModel.evaluateAnswer() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = androidx.compose.ui.graphics.Color(0xFF8B5CF6),
+                                contentColor = androidx.compose.ui.graphics.Color.White
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("btnKoreksiAI"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                "KOREKSI AI",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
             }
@@ -1104,7 +1138,10 @@ fun KunciJawabanTabContent(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            contentInput = "Mengekstrak teks kunci dari galeri...\n(Teks hasil OCR akan muncul di sini)"
+            contentInput = "Mengekstrak teks kunci dari galeri..."
+            com.example.core.OcrManager.scanText(context, uri) { hasilOCR ->
+                contentInput = hasilOCR
+            }
         }
     }
 
@@ -1113,7 +1150,10 @@ fun KunciJawabanTabContent(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            contentInput = "Mengekstrak teks kunci dari kamera...\n(Teks hasil OCR akan muncul di sini)"
+            contentInput = "Mengekstrak teks kunci dari kamera..."
+            com.example.core.OcrManager.scanText(bitmap) { hasilOCR ->
+                contentInput = hasilOCR
+            }
         }
     }
 

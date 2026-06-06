@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +40,24 @@ class KoreksiViewModel(application: Application) : AndroidViewModel(application)
     init {
         val database = KoreksiDatabase.getDatabase(application)
         repository = KoreksiRepository(database.koreksiDao())
+
+        // Auto-populate default answer key if empty
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val currentKeys = repository.allAnswerKeys.first()
+                if (currentKeys.isEmpty()) {
+                    repository.insertAnswerKey(
+                        AnswerKey(
+                            subject = "IPA Kelas 6",
+                            title = "Bab 1",
+                            content = "1.C, 2.A, 3.B, 4.D, 5.E"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     // Download states
