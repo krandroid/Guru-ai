@@ -380,6 +380,7 @@ fun KoreksiTabContent(
     var expandedDropdown by remember { mutableStateOf(false) }
     var saveHistorySuccess by remember { mutableStateOf(false) }
     var hasUploadedImage by remember { mutableStateOf(false) }
+    var isOmrMode by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -394,10 +395,17 @@ fun KoreksiTabContent(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            viewModel.studentAnswerInput.value = "Memproses gambar dari galeri..."
             hasUploadedImage = true
-            com.example.core.OcrManager.scanText(context, uri) { hasilOCR ->
-                viewModel.studentAnswerInput.value = hasilOCR
+            if (isOmrMode) {
+                viewModel.studentAnswerInput.value = "Mendeteksi bulatan LJK (Pilihan Ganda)..."
+                com.example.core.OcrManager.scanMultipleChoice(context, uri) { hasilLJK ->
+                    viewModel.studentAnswerInput.value = hasilLJK
+                }
+            } else {
+                viewModel.studentAnswerInput.value = "Memproses gambar dari galeri..."
+                com.example.core.OcrManager.scanText(context, uri) { hasilOCR ->
+                    viewModel.studentAnswerInput.value = hasilOCR
+                }
             }
         }
     }
@@ -613,12 +621,94 @@ fun KoreksiTabContent(
 
                         // ===== JELAJAHI MEDIA / OCR =====
                         Text(
-                            text = "- Unggah Sumber Lembar Jawaban (OCR) -",
+                            text = "- Unggah Sumber Lembar Jawaban -",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
+
+                        // Mode Selector: Esai (OCR) vs LJK / PG (OMR)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (!isOmrMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = if (!isOmrMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { isOmrMode = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Esai Mode",
+                                        tint = if (!isOmrMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Esai (OCR)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (!isOmrMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isOmrMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = if (isOmrMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { isOmrMode = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "LJK Mode",
+                                        tint = if (isOmrMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "OMR Lembar LJK",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isOmrMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
 
                         Button(
                             onClick = {
